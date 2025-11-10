@@ -42,6 +42,57 @@ impl WorldTime {
     }
 }
 
+// Extracted component functions for WorldTime
+fn city_name_header(name: &str, is_home: bool) -> impl IntoElement {
+    div()
+        .flex()
+        .items_center()
+        .gap_2()
+        .child(
+            div()
+                .child(name.to_string())
+                .text_lg()
+                .font_weight(gpui::FontWeight::BOLD)
+                .text_color(if is_home {
+                    rgb(0x3b82f6)
+                } else {
+                    rgb(0x111827)
+                }),
+        )
+        .children(is_home.then(|| Tag::secondary().small().child("Home")))
+}
+
+fn time_display(time: &str) -> impl IntoElement {
+    div().flex().items_center().gap_2().child(
+        div()
+            .child(time.to_string())
+            .text_3xl()
+            .font_weight(gpui::FontWeight::BOLD)
+            .text_color(rgb(0x111827)),
+    )
+}
+
+fn time_difference_display(diff_hours: i32) -> impl IntoElement {
+    div()
+        .child(format!("Δ {} hours", diff_hours).to_string())
+        .text_sm()
+        .font_weight(gpui::FontWeight::BOLD)
+        .text_color(if diff_hours >= 0 {
+            rgb(0x22c55e)
+        } else {
+            rgb(0xef4444)
+        })
+}
+
+fn timezone_display(timezone_id: &str) -> impl IntoElement {
+    div().flex().items_center().gap_1().child(
+        div()
+            .child(timezone_id.to_string())
+            .text_xs()
+            .text_color(rgb(0x6b7280)),
+    )
+}
+
 impl Render for WorldTime {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let frame_color = if self.is_home {
@@ -72,55 +123,39 @@ impl Render for WorldTime {
                     .flex_col()
                     .items_center()
                     .gap_1()
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child(
-                                div()
-                                    .child(self.name.to_string())
-                                    .text_lg()
-                                    .font_weight(gpui::FontWeight::BOLD)
-                                    .text_color(if self.is_home {
-                                        rgb(0x3b82f6)
-                                    } else {
-                                        rgb(0x111827)
-                                    }),
-                            )
-                            .children(self.is_home.then(|| Tag::secondary().small().child("Home"))),
-                    )
-                    .child(
-                        div().flex().items_center().gap_2().child(
-                            div()
-                                .child(self.time.to_string())
-                                .text_3xl()
-                                .font_weight(gpui::FontWeight::BOLD)
-                                .text_color(rgb(0x111827)),
-                        ),
-                    )
-                    .child(
-                        div()
-                            .child(format!("Δ {} hours", self.diff_hours).to_string())
-                            .text_sm()
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(if self.diff_hours >= 0 {
-                                rgb(0x22c55e)
-                            } else {
-                                rgb(0xef4444)
-                            }),
-                    )
-                    .child(
-                        div().flex().items_center().gap_1().child(
-                            div()
-                                .child(self.timezone_id.to_string())
-                                .text_xs()
-                                .text_color(rgb(0x6b7280)),
-                        ),
-                    ),
+                    .child(city_name_header(&self.name, self.is_home))
+                    .child(time_display(&self.time))
+                    .child(time_difference_display(self.diff_hours))
+                    .child(timezone_display(&self.timezone_id)),
             )
     }
 }
+// Extracted header component
+fn app_header(cx: &mut Context<WorldTimeApp>) -> impl IntoElement {
+    div()
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap_2()
+                .child("🌍 World Time Display"),
+        )
+        .text_2xl()
+        .font_weight(gpui::FontWeight::BOLD)
+        .text_color(cx.theme().accent_foreground)
+        .text_center()
+}
+
+// Extracted city grid component
+fn city_grid(cities: &[Entity<WorldTime>]) -> impl IntoElement {
+    div()
+        .flex()
+        .flex_wrap()
+        .gap_8()
+        .justify_center()
+        .children(cities.iter().map(|city| city.clone()))
+}
+
 struct WorldTimeApp {
     cities: Vec<Entity<WorldTime>>,
     last_update: std::time::Instant,
@@ -146,28 +181,8 @@ impl Render for WorldTimeApp {
             .p_6()
             .bg(cx.theme().background)
             .size_full()
-            .child(
-                div()
-                    .child(
-                        div()
-                            .flex()
-                            .items_center()
-                            .gap_2()
-                            .child("🌍 World Time Display"),
-                    )
-                    .text_2xl()
-                    .font_weight(gpui::FontWeight::BOLD)
-                    .text_color(cx.theme().accent_foreground)
-                    .text_center(),
-            )
-            .child(
-                div()
-                    .flex()
-                    .flex_wrap()
-                    .gap_8()
-                    .justify_center()
-                    .children(self.cities.iter().map(|city| city.clone())),
-            )
+            .child(app_header(cx))
+            .child(city_grid(&self.cities))
     }
 }
 fn main() {
