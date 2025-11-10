@@ -1,5 +1,4 @@
-use chrono::{Local, Utc};
-use chrono_tz::Tz;
+use chrono::Utc;
 use eframe::egui;
 
 #[derive(Debug, Clone)]
@@ -13,38 +12,36 @@ pub struct WorldTime {
 
 impl WorldTime {
     fn new(name: &str, timezone_id: &str, is_home: bool, home_offset: i32) -> Self {
-        // Calculate actual time for this timezone
-        let current_time = if let Ok(tz) = timezone_id.parse::<Tz>() {
-            let utc_now = Utc::now();
-            utc_now.with_timezone(&tz).format("%H:%M").to_string()
-        } else {
-            // Fallback to local time if timezone parsing fails
-            Local::now().format("%H:%M").to_string()
-        };
-
         WorldTime {
             name: name.to_string(),
-            time: current_time,
+            time: Self::calculate_time_from_austin(home_offset),
             diff_hours: home_offset,
             is_home,
             timezone_id: timezone_id.to_string(),
         }
     }
 
+    // Calculate Austin's time (UTC-6) as the base
+    fn get_austin_time() -> chrono::DateTime<Utc> {
+        Utc::now() + chrono::Duration::hours(-6) // Austin is UTC-6
+    }
+
+    // Calculate time relative to Austin's time
+    fn calculate_time_from_austin(austin_offset: i32) -> String {
+        let austin_time = Self::get_austin_time();
+        let adjusted_time = austin_time + chrono::Duration::hours(austin_offset as i64);
+        adjusted_time.format("%H:%M").to_string()
+    }
+
     fn update_time(&mut self) {
-        // Update the time for this timezone
-        let current_time = if let Ok(tz) = self.timezone_id.parse::<Tz>() {
-            let utc_now = Utc::now();
-            utc_now.with_timezone(&tz).format("%H:%M").to_string()
-        } else {
-            Local::now().format("%H:%M").to_string()
-        };
-        self.time = current_time;
+        self.time = Self::calculate_time_from_austin(self.diff_hours);
     }
 }
 
 struct WorldTimeApp {
     cities: Vec<WorldTime>,
+    last_update: std::time::Instant,
+    disable_resizing: bool,
 }
 
 impl Default for WorldTimeApp {
@@ -57,19 +54,26 @@ impl Default for WorldTimeApp {
 
         Self {
             cities: vec![austin, nyc, london, berlin, bucharest],
+            last_update: std::time::Instant::now(),
+            disable_resizing: false,
         }
     }
 }
 
 impl eframe::App for WorldTimeApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Update all city times every frame
-        for city in &mut self.cities {
-            city.update_time();
-        }
+        // Only update every minute to save CPU (don't care about seconds)
+        let now = std::time::Instant::now();
+        if now.duration_since(self.last_update).as_secs() >= 60 {
+            // Update all city times once per minute
+            for city in &mut self.cities {
+                city.update_time();
+            }
+            self.last_update = now;
 
-        // Request repaint to keep updating times
-        ctx.request_repaint();
+            // Request repaint since time updated
+            ctx.request_repaint();
+        }
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("🌍 World Time Display");
@@ -78,7 +82,7 @@ impl eframe::App for WorldTimeApp {
 
             // Display all cities in a responsive grid (all visible at once)
             egui::Grid::new("cities_grid")
-                .spacing([15.0, 10.0])
+                .spacing([15.0, 15.0])
                 .show(ui, |ui| {
                     for (index, city) in self.cities.iter().enumerate() {
                         // City card with enhanced styling
@@ -113,11 +117,11 @@ impl eframe::App for WorldTimeApp {
                                         ui.heading(&city.name);
                                     }
 
-                                    ui.add_space(6.0);
+                                    ui.add_space(8.0);
 
                                     // Current time - BIGGER and more prominent
                                     ui.horizontal(|ui| {
-                                        ui.label(egui::RichText::new("🕐").size(24.0));
+                                        ui.label(egui::RichText::new("🕐").size(26.0));
                                         ui.label(
                                             egui::RichText::new(&city.time)
                                                 .size(32.0)
@@ -165,17 +169,20 @@ impl eframe::App for WorldTimeApp {
 }
 
 fn main() -> eframe::Result<()> {
+    // Create the app instance first to access its configuration
+    let app = WorldTimeApp::default();
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([650.0, 450.0]) // More reasonable window size
             .with_title("World Time Display")
-            .with_resizable(false), // Disable resizing (which includes maximizing)
+            .with_resizable(app.disable_resizing),
         ..Default::default()
     };
 
     eframe::run_native(
         "World Time Display",
         options,
-        Box::new(|_cc| Ok(Box::new(WorldTimeApp::default()))),
+        Box::new(|_cc| Ok(Box::new(app))),
     )
 }
