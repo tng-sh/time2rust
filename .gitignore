@@ -1,0 +1,59 @@
+# Rust build artifacts
+target/
+Cargo.lock
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated documentation
+/book
+
+# Test coverage
+*.profraw
+
+# Rust-specific
+rustc-ice-*.txt
+
+# WASM artifacts (if using wasm-pack)
+pkg/
+wasm-pack.log
+
+# Node.js (if using wasm-bindgen)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
